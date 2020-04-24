@@ -1,0 +1,128 @@
+grammar org.group9.IOTConnector with org.eclipse.xtext.common.Terminals
+
+generate iOTConnector "http://www.group9.org/IOTConnector"
+
+Program:
+	webserver=Webserver wifis+=Wifi+ configs+=Config+ boards+=Board+
+;
+
+Webserver:
+	'define' 'webserver' '(' 'host' 'is' url=STRING ',' 'port' 'is' port=INT ')'
+;
+
+Wifi:
+	'define' 'wifi' '(' 'ssid' 'is' ssid=STRING ',' 'password' 'is' password=STRING ')'
+;
+
+Config:
+	'config' name=ID sensors+=Sensor+
+;
+
+Board:
+	'board' ('(' 'id' 'is' name=STRING ')')? sensorConfigs+=SensorConfig* 'use' 'config' configName=[Config]
+;
+
+SensorConfig:
+	'sensor' name=SensorName ('external' '(' 'pin' 'in' 'is' pinIn=STRING ',' 'pin' 'out' 'is' pinOut=STRING ')')?
+;
+
+Sensor:
+	'sensor' name=SensorName type=('external')? output=Output functions+=Function+ send=Send
+;
+
+SensorName:
+	'light' | 'temperature'
+;
+
+Output:
+	'output' readingNames+=ReadingName (',' readingNames+=ReadingName)*
+;
+
+Function:
+	Sample | Filter | Process
+;
+
+Sample:
+	'sample' sampleActions+=SampleAction+
+;
+
+SampleAction:
+	readingName=[ReadingName] ('when' readingNameToCompare=ReadingNameWithConfigScope
+		relationalOperator=RelationalOperator number=INT)? 'every' amountOfTime=INT timeUnit=TimeUnit
+;
+
+Filter:
+    'filter' filterActions+=FilterAction+
+;
+
+FilterAction:
+    readingName=[ReadingName] 'use' ((filterType=FilterType 'with' number=INT 'values') | filterExp=FilterExp)
+;
+
+FilterExp:
+	readingName=ReadingNameWithConfigScope relationalOperator=RelationalOperator number=INT (bitwiseOperator=BitwiseOperator filterExp=FilterExp)?
+;
+
+Process:
+	'process' processActions+=ProcessAction+
+;
+
+ProcessAction:
+	readingName=[ReadingName] 'is' exp=Exp
+;
+
+Exp returns Expression:
+	Factor (('+' {Plus.left=current} | '-' {Minus.left=current}) right=Factor)*
+;
+
+Factor returns Expression:
+	Primary (('*' {Mult.left=current} | '/' {Div.left=current}) right=Primary)*	
+;
+
+Primary returns Expression:
+    Number | Parenthesis | Variable
+;
+
+Number returns Expression:
+	{Num} value=INT
+;
+
+Parenthesis returns Expression:
+	'(' Exp ')'
+;
+
+Variable returns Expression:
+    {Var} readingName=ReadingNameWithConfigScope
+;
+
+Send:
+	'send' sendActions+=SendAction+
+;
+
+SendAction:
+	readingName=[ReadingName] 'when' 'samples' relationalOperator=RelationalOperator number=INT
+;
+
+ReadingName:
+	name = ID
+;
+
+ReadingNameWithConfigScope:
+	name=[ReadingName]
+;
+
+BitwiseOperator:
+	value = ('AND' | 'OR')
+;
+
+RelationalOperator:
+	value = ('>' | '>=' | '==' | '<=' | '<' | '!=')
+;
+
+TimeUnit:
+	value = ('millisecond' | 'second' | 'minute' | 'ms' | 's' | 'm')
+;
+
+FilterType:
+	value = ('medianfilter' | 'meanfilter')
+;
